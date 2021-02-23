@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Start node exporter with correct paths (managed by infractl)
+./bin/infractl start dependency servermon --path.rootfs=/rootfs --path.procfs=/host/proc --collector.filesystem.ignored-mount-points="^/(dev|proc|sys|host|etc|run)($|/)"
+
+# Start cadvisor (managed by infractl)
+./bin/infractl start dependency containermon
+
+# Start Infrastructure Agent (not using infractl as this allows the container to remain running)
+exec ./bin/appdynamics-infra-agent

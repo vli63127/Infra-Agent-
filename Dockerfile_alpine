@@ -1,0 +1,32 @@
+# NOT ACTUALLY BEING USED TO BUILD IA DOCKER IMAGE! INCLUDED FOR REFERENCE PURPOSES.
+FROM alpine:3.12
+
+LABEL name="AppDynamics Infrastructure Agent"
+
+# Add Tini (same as --init flag for docker run), unzip, and ca-certificates for functionality.
+# For all others, had to add these in order for cadvisor to run properly.
+# Pulled directly from cadvisor Dockerfile: https://github.com/google/cadvisor/blob/master/deploy/Dockerfile
+RUN apk --update --no-cache add unzip tini libc6-compat device-mapper findutils zfs ca-certificates && \
+    apk --no-cache add thin-provisioning-tools --repository http://dl-3.alpinelinux.org/alpine/edge/main/ && \
+    echo 'hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4' >> /etc/nsswitch.conf && update-ca-certificates && \
+    rm -rf /var/cache/apk/*
+
+RUN wget https://sourceforge.net/projects/perfmon2/files/libpfm4/libpfm-4.10.1.tar.gz && \
+  tar -xzf libpfm-4.10.1.tar.gz && \
+  rm libpfm-4.10.1.tar.gz
+
+# Install AppDynamics Infrastructure Agent
+ENV INFRA_AGENT_HOME /opt/appdynamics/infra-agent/
+COPY start_appdynamics ${INFRA_AGENT_HOME}
+COPY appdynamics-infra-agent-linux-amd64-*.zip /tmp/infra-agent.zip
+RUN mkdir -p ${INFRA_AGENT_HOME} && \
+    unzip -oq /tmp/infra-agent.zip -d ${INFRA_AGENT_HOME} && \
+    rm /tmp/infra-agent.zip
+
+# Changing directory to INFRA_AGENT_HOME
+WORKDIR ${INFRA_AGENT_HOME}
+
+# Would need to change the shebang in start_appdynamics to "#!/bin/sh"
+# Required configs for startup passed into container via environment variables
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ./start_appdynamics
